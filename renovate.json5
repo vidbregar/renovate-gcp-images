@@ -1,0 +1,48 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:base",
+    ":dependencyDashboard"
+  ],
+  "dependencyDashboard": true,
+  "recreateClosed": false,
+  "customManagers": [
+    {
+      "customType": "regex",
+      // This will check all .tf and .pkr.hcl files for the regex match
+      "fileMatch": [
+        ".*\\.(tf|pkr\\.hcl)$"
+      ],
+      // Will match extract the necessary information from, for example:
+      // locals {
+      //   # renovate: gcp-images versioning=loose
+      //   source_image_name       = "my-gcp-project/my-image-name"
+      //   source_image_version    = "28.1"
+      // }
+      //
+      // The actual full image name in GCP would be `my-image-name---28-1`
+      // because the name must consist only of lowercase letters (a-z), numbers and hyphens.
+      "matchStrings": [
+        "#\\s*?renovate: gcp-images( versioning=(?<versioning>.*?))?\\s+.*image_name\\s+=\\s+\\\"(?<depName>.*?)\\\"\\s+.*image_version\\s+=\\s+\\\"(?<currentValue>.*?)\\\""
+      ],
+      "versioningTemplate": "{{#if versioning}}{{{versioning}}}{{else}}semver{{/if}}",
+      "datasourceTemplate": "custom.gcp-disk-image"
+    }
+  ],
+  "customDatasources": {
+    "gcp-disk-image": {
+      "defaultRegistryUrlTemplate": "https://europe-west1-my-project.cloudfunctions.net/renovate-gcp-datasource/v1/releases/images/{{packageName}}"
+    }
+  },
+  packageRules: [
+    {
+      "matchDatasources": [
+        "custom.gcp-disk-image"
+      ],
+      "matchPackagePatterns": [
+        "*"
+      ],
+      "ignoreUnstable": false
+    },
+  ],
+}

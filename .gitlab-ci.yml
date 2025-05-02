@@ -1,0 +1,31 @@
+renovate:auth:
+  image: google/cloud-sdk
+  variables:
+    GCP_PROJECT: "my-project"
+    SERVICE_ACCOUNT_EMAIL: "renovate@my-project.iam.gserviceaccount.com"
+  script:
+    - gcloud config set project "$GCP_PROJECT"
+    - gcloud auth activate-service-account $SERVICE_ACCOUNT_EMAIL --key-file "$RENOVATE_SA_KEY"
+    - echo "GOOGLE_IDENTITY_TOKEN=$(gcloud auth print-identity-token)" >> auth.env
+  artifacts:
+    reports:
+      dotenv:
+        - auth.env
+
+renovate:
+  needs:
+    - job: renovate:auth
+      artifacts: true
+  image:
+    name: renovate/renovate
+  before_script:
+    - >-
+      export RENOVATE_HOST_RULES="[
+      {\"matchHost\": \"europe-west1-my-project.cloudfunctions.net\", \"token\": \"$GOOGLE_IDENTITY_TOKEN\" }
+      ]"
+  script:
+    - renovate "${PROJECT_PATH}"
+  parallel:
+    matrix:
+      - PROJECT_PATH: "some-org/some-project"
+        RENOVATE_LABELS: "renovate"
